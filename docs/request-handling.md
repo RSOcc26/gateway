@@ -34,7 +34,8 @@ How the gateway handles a request from the browser. Cross-cutting background:
 | May the user do *this* action on *this* object? | the owning service | `403` from the service |
 
 The caches are invalidated early by `identity.membership.*` and
-`access.role.*` events once events exist. Until then the short TTL bounds how
+`access.role.*` events, read from the `identity.events` and `access.events`
+Kafka topics with consumer group `gateway`. Until then the short TTL bounds how
 stale they can be.
 
 Public endpoints that need no company (for example "list my companies" or

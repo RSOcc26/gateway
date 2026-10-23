@@ -91,6 +91,10 @@ ConfigMaps.
 | `TENANT_CONTEXT_ISSUER` | yes | Issuer of the tenant context token |
 | `TENANT_CONTEXT_SIGNING_KEY_FILE` | yes | Path to the private key that signs the tenant context (mounted Secret) |
 | `TENANT_CONTEXT_TTL_SECONDS` | no | Lifetime of a tenant context token (default `60`) |
+| `KAFKA_BROKERS` | yes | Kafka bootstrap servers; the gateway reads membership and role events to invalidate its caches |
+| `KAFKA_GROUP_ID` | no | Consumer group (default `gateway`) |
+| `KAFKA_CONSUME_TOPICS` | no | Topics read for cache invalidation (default `identity.events,access.events`) |
+| `KAFKA_SASL_MECHANISM`, `KAFKA_USERNAME`, `KAFKA_PASSWORD` | in Kubernetes | SCRAM credentials of the gateway's Kafka user; empty for the local broker |
 
 Authentication settings are added once ADR-0002 is decided. See
 [`.env.example`](.env.example).
