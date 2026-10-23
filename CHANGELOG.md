@@ -9,3 +9,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Repository scaffold.
+- Request handling design (`docs/request-handling.md`): routing, authentication and authorization, tenant validation, rate limits, correlation IDs, timeouts and errors.
+- ADR-0001 (Proposed): custom Node.js gateway vs. Kong vs. Traefik.
+- `.env.example` and the configuration table.
+
+### Changed
+
+- Renamed the project from CompanyHub to CompanyCentral; routes now target the first-milestone services.

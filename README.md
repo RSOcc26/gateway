@@ -1,19 +1,24 @@
 # gateway
 
-CompanyHub API gateway: the single entry point that authenticates every API
-call and routes it to the service that owns it.
+CompanyCentral API gateway: the single entry point that authenticates every
+API call, validates the tenant context and routes the call to the service that
+owns it.
 
-Part of **CompanyHub**, a multi-tenant, cloud-native microservices platform
-built for the *Cloud Computing Services* course (RSO 2026/27, FRI UL).
-See the [RSOcc26 organization](https://github.com/RSOcc26) for the other repositories.
+Part of **CompanyCentral**, a multi-tenant, cloud-native platform built for
+the *Cloud Computing Services* course (RSO 2026/27, FRI UL).
+See the [architecture](https://github.com/RSOcc26/.github/blob/main/docs/architecture.md) and the
+[RSOcc26 organization](https://github.com/RSOcc26) for the other repositories.
 
 > **Status:** scaffold — no implementation yet.
 
 ## Responsibilities
 
 - Routing `/api/...` requests to the owning service
-- Authenticating the session or token, with Identity as the source of truth
-- Setting the tenant (company) and user context passed on to services
+- Authenticating the request (the mechanism depends on the open
+  [ADR-0007](https://github.com/RSOcc26/.github/blob/main/docs/adr/0007-identity-provider-open-decision.md))
+- Validating that the user is a member of the requested company and passing
+  a signed tenant context to services
+- Coarse authorization: is the application enabled and allowed for this user
 - Rate limiting and request size limits
 - Request IDs, structured access logs and metrics for every call
 - Timeouts, retries and circuit breaking towards services
@@ -27,14 +32,37 @@ serve the frontend; that is the `web` repository.
 Browser ──▶ Ingress ──┬── /       ──▶ web
                       └── /api/*  ──▶ gateway ──┬──▶ service-identity
                                                 ├──▶ service-access
-                                                ├──▶ service-audit
-                                                ├──▶ service-messaging
-                                                ├──▶ service-tasks
-                                                └──▶ …
+                                                ├──▶ service-workflow
+                                                ├──▶ service-inventory
+                                                └──▶ service-production
 ```
 
 Services are reachable only from inside the cluster; the gateway is the only
-backend exposed through the Ingress.
+backend exposed through the Ingress. TLS ends at the Ingress.
+
+## Request handling
+
+The full design is in [docs/request-handling.md](docs/request-handling.md). In
+short, every request passes these steps in order:
+
+1. **Correlation ID:** reuse a valid `X-Request-Id` or generate one; return it
+   in the response and pass it to services.
+2. **Header hygiene:** drop client-supplied internal headers (tenant context,
+   user ID, roles).
+3. **Rate and size limits:** reject with `429` or `413`.
+4. **Routing:** match `/api/<service>/...` to the owning service. Internal
+   service paths (`/v1/internal/...`) are never routed from outside.
+5. **Authentication:** validate the user's session or token.
+6. **Tenant validation:** check that the user is an active member of the
+   requested company (Identity, short cache).
+7. **Application access:** check that the company has the application enabled
+   and the user may use it (Access, short cache).
+8. **Forwarding:** attach the signed, short-lived tenant context and forward
+   with a timeout; map upstream failures to `502`/`503`/`504` as
+   `application/problem+json`.
+
+Whether this stays a custom Node.js service or moves to Kong or Traefik is
+evaluated in [ADR-0001](docs/adr/0001-gateway-implementation.md) (*Proposed*).
 
 ## API
 
@@ -53,7 +81,19 @@ ConfigMaps.
 
 | Variable | Required | Description |
 |---|---|---|
-| _To be defined._ | | |
+| `PORT` | no | HTTP port (default `8080`) |
+| `LOG_LEVEL` | no | `debug`, `info`, `warn` or `error` (default `info`) |
+| `IDENTITY_URL`, `ACCESS_URL`, `WORKFLOW_URL`, `INVENTORY_URL`, `PRODUCTION_URL` | yes | Internal base URL of each service |
+| `UPSTREAM_TIMEOUT_MS` | no | Timeout for a call to a service (default `5000`) |
+| `RATE_LIMIT_PER_MINUTE` | no | Requests per minute per user and company (default `300`) |
+| `MAX_BODY_BYTES` | no | Maximum request body size (default `1048576`) |
+| `MEMBERSHIP_CACHE_TTL_SECONDS` | no | How long membership and access answers are cached (default `30`) |
+| `TENANT_CONTEXT_ISSUER` | yes | Issuer of the tenant context token |
+| `TENANT_CONTEXT_SIGNING_KEY_FILE` | yes | Path to the private key that signs the tenant context (mounted Secret) |
+| `TENANT_CONTEXT_TTL_SECONDS` | no | Lifetime of a tenant context token (default `60`) |
+
+Authentication settings are added once ADR-0007 is decided. See
+[`.env.example`](.env.example).
 
 ## Getting started
 
