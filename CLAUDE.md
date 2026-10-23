@@ -39,9 +39,6 @@ deployable unit:
 | `deploy` | Docker Compose, Kubernetes, Helm charts, monitoring |
 | `.github` | Organization defaults, reusable CI, architecture docs |
 
-An activity log, a Hub mailbox and shared tasks are out of scope for now;
-they may be added later as new services.
-
 ## Architecture rules
 
 - Browser → Ingress → `web` (`/`) or `gateway` (`/api/*`) → services. Only the
@@ -68,7 +65,7 @@ they may be added later as new services.
   Compose locally, Kubernetes with Helm, GitHub Actions, images in GitHub
   Container Registry. No Kafka, gRPC, GraphQL or event sourcing for now.
 - Identity: custom identity vs. an external OIDC provider is an **open
-  decision** (ADR-0007). Do not implement either authentication approach
+  decision** (ADR-0002). Do not implement either authentication approach
   until it is decided.
 - Significant design decisions get an ADR in `docs/adr/`.
 
@@ -121,8 +118,8 @@ services. It also does routing, rate and size limits, timeouts, retries and
 circuit breaking.
 
 It holds **no business rules and no business data**. If a change needs a
-domain decision, it belongs in a service. Whether it stays custom or moves to
-Kong or Traefik is decided in `docs/adr/`.
+domain decision, it belongs in a service. Kong and Traefik are evaluated as
+alternatives in `docs/request-handling.md`.
 
 Layout: `src/routes/` (route table), `src/middleware/` (auth, tenant context,
 limits, logging), `src/config/`, `test/unit/`, `test/integration/`, `docs/adr/`.

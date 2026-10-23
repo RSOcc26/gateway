@@ -4,7 +4,7 @@
 
 How the gateway handles a request from the browser. Cross-cutting background:
 [architecture](https://github.com/RSOcc26/.github/blob/main/docs/architecture.md),
-[ADR-0008 tenant context](https://github.com/RSOcc26/.github/blob/main/docs/adr/0008-tenant-context-validation.md).
+[ADR-0001 multi-tenancy](https://github.com/RSOcc26/.github/blob/main/docs/adr/0001-multi-tenancy.md).
 
 ## Routing
 
@@ -28,7 +28,7 @@ How the gateway handles a request from the browser. Cross-cutting background:
 
 | Step | Responsibility | Failure |
 |---|---|---|
-| Authenticate the request | gateway, against Identity or the OIDC provider (ADR-0007, open) | `401` |
+| Authenticate the request | gateway, against Identity or the OIDC provider (ADR-0002, open) | `401` |
 | Is the user an active member of the requested company? | gateway asks Identity (`/v1/internal/memberships/check`), cached `MEMBERSHIP_CACHE_TTL_SECONDS` | `403` |
 | Is the application enabled for the company, and may the user use it? | gateway asks Access (`/v1/internal/access/check`), cached the same way | `403` |
 | May the user do *this* action on *this* object? | the owning service | `403` from the service |
@@ -81,3 +81,19 @@ else requires a tenant.
 
 All gateway-generated errors use `application/problem+json` (RFC 9457) and
 include `correlationId`.
+
+## Implementation options
+
+Besides the CompanyCentral-specific steps (authentication, membership and
+application checks, signing the tenant context), the gateway needs generic
+proxy features: routing, limits, retries, circuit breaking.
+
+| Option | Strengths | Weaknesses |
+|---|---|---|
+| **Custom Node.js** (chosen) | Tenant logic is ordinary, testable code in the team's stack; no extra infrastructure | We maintain the generic proxy parts ourselves |
+| Kong (OSS, DB-less) | Mature routing, rate limiting and JWT plugins; Helm chart | OIDC plugin is Enterprise-only; tenant checks need a custom plugin; new technology |
+| Traefik | Middlewares for limits, retries, circuit breaking; can also be the Ingress controller | Tenant checks via ForwardAuth still need a small auth service; harder to mirror in Docker Compose |
+
+The tenant and authentication logic is kept in one bounded module with its own
+HTTP endpoint, so it could later serve as a Traefik ForwardAuth target if the
+generic proxy code becomes a burden.

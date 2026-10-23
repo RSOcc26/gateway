@@ -15,7 +15,7 @@ See the [architecture](https://github.com/RSOcc26/.github/blob/main/docs/archite
 
 - Routing `/api/...` requests to the owning service
 - Authenticating the request (the mechanism depends on the open
-  [ADR-0007](https://github.com/RSOcc26/.github/blob/main/docs/adr/0007-identity-provider-open-decision.md))
+  [ADR-0002](https://github.com/RSOcc26/.github/blob/main/docs/adr/0002-identity-provider.md))
 - Validating that the user is a member of the requested company and passing
   a signed tenant context to services
 - Coarse authorization: is the application enabled and allowed for this user
@@ -61,8 +61,8 @@ short, every request passes these steps in order:
    with a timeout; map upstream failures to `502`/`503`/`504` as
    `application/problem+json`.
 
-Whether this stays a custom Node.js service or moves to Kong or Traefik is
-evaluated in [ADR-0001](docs/adr/0001-gateway-implementation.md) (*Proposed*).
+The gateway is a custom Node.js service. Kong and Traefik are evaluated as
+alternatives in [docs/request-handling.md](docs/request-handling.md#implementation-options).
 
 ## API
 
@@ -92,7 +92,7 @@ ConfigMaps.
 | `TENANT_CONTEXT_SIGNING_KEY_FILE` | yes | Path to the private key that signs the tenant context (mounted Secret) |
 | `TENANT_CONTEXT_TTL_SECONDS` | no | Lifetime of a tenant context token (default `60`) |
 
-Authentication settings are added once ADR-0007 is decided. See
+Authentication settings are added once ADR-0002 is decided. See
 [`.env.example`](.env.example).
 
 ## Getting started
