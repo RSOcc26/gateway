@@ -237,6 +237,22 @@ test('an upstream response above MAX_RESPONSE_BYTES returns 502', async () => {
   problem(res, 502);
 });
 
+test('an endless upstream body without Content-Length stops at the limit', async () => {
+  const endless = fakeFetch(() => new Response(new ReadableStream({
+    pull(controller) { controller.enqueue(new Uint8Array(512)); },
+  })));
+  const res = await (await app({ fetchImpl: endless.impl, config: { ...config, maxResponseBytes: 1024 } }))
+    .inject({ url: '/api/identity/v1/me', headers: auth });
+  problem(res, 502);
+});
+
+test('headers the upstream names in Connection are not copied back', async () => {
+  const upstream = fakeFetch(() => Response.json({}, { headers: { connection: 'close, X-Secret', 'x-secret': 'leak', 'x-kept': '1' } }));
+  const res = await (await app({ fetchImpl: upstream.impl })).inject({ url: '/api/identity/v1/me', headers: auth });
+  assert.equal(res.headers['x-secret'], undefined);
+  assert.equal(res.headers['x-kept'], '1');
+});
+
 test('Location headers never expose internal service URLs', async () => {
   const redirect = fakeFetch((url) => new Response(null, {
     status: 201,

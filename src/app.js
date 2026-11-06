@@ -37,9 +37,16 @@ const readBody = async (res, maxBytes) => {
     await res.body?.cancel();
     throw new ResponseTooLargeError('upstream response too large');
   }
-  const body = Buffer.from(await res.arrayBuffer());
-  if (body.length > maxBytes) throw new ResponseTooLargeError('upstream response too large');
-  return body;
+  // Counted while streaming, so a body without Content-Length never exceeds the limit in memory;
+  // leaving the loop early cancels the stream
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of res.body ?? []) {
+    size += chunk.length;
+    if (size > maxBytes) throw new ResponseTooLargeError('upstream response too large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 };
 
 // Builds the gateway. Dependencies are injected so tests need no network:

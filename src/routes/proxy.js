@@ -70,8 +70,10 @@ const publicLocation = (location, { serviceUrl, publicPrefix }) => {
 };
 
 export const copyResponseHeaders = (upstream, reply, target) => {
+  // Headers the upstream names in Connection are hop-by-hop too (RFC 9110 7.6.1)
+  const nominated = new Set((upstream.headers.get('connection') ?? '').toLowerCase().split(',').map((h) => h.trim()));
   for (const [name, value] of upstream.headers) {
-    if (DROPPED_RESPONSE_HEADERS.has(name)) continue;
+    if (DROPPED_RESPONSE_HEADERS.has(name) || nominated.has(name)) continue;
     if (name === 'location' || name === 'content-location') reply.header(name, publicLocation(value, target));
     else reply.header(name, value);
   }
