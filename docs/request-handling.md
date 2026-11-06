@@ -1,6 +1,6 @@
 # Request handling
 
-> **Status:** design; nothing is implemented yet.
+> **Status:** partly implemented; see the README for what is live.
 
 How the gateway handles a request from the browser. Cross-cutting background:
 [architecture](https://github.com/RSOcc26/.github/blob/main/docs/architecture.md),
@@ -15,7 +15,7 @@ How the gateway handles a request from the browser. Cross-cutting background:
 | `/api/workflow/v1/...` | `service-workflow` | `/v1/...` |
 | `/api/inventory/v1/...` | `service-inventory` | `/v1/...` |
 | `/api/production/v1/...` | `service-production` | `/v1/...` |
-| `/api-docs` | gateway | Combined index of the services' OpenAPI documents |
+| `/api-docs` | gateway | The gateway's public contract (YAML, no token); a combined index of the services' documents is planned |
 | `/health/live`, `/health/ready`, `/metrics` | gateway | Not routed through the Ingress |
 
 - Paths under `/v1/internal/...` are service-to-service only and return `404`
@@ -28,7 +28,7 @@ How the gateway handles a request from the browser. Cross-cutting background:
 
 | Step | Responsibility | Failure |
 |---|---|---|
-| Authenticate the request | gateway, against Identity or the OIDC provider (ADR-0002, open) | `401` |
+| Authenticate the request | gateway: Keycloak access token (signature via discovery and JWKS, issuer, audience `gateway`, expiry), ADR-0002 | `401`; `503` if the provider is unreachable |
 | Is the user an active member of the requested company? | gateway asks Identity (`/v1/internal/memberships/check`), cached `MEMBERSHIP_CACHE_TTL_SECONDS` | `403` |
 | Is the application enabled for the company, and may the user use it? | gateway asks Access (`/v1/internal/access/check`), cached the same way | `403` |
 | May the user do *this* action on *this* object? | the owning service | `403` from the service |
@@ -51,6 +51,38 @@ else requires a tenant.
   `aud` (target service), `iss`, a short `exp` and the correlation ID.
 - Services verify the signature using the gateway's JWKS
   (`/.well-known/jwks.json`, cluster-internal) and use only `tid` as the tenant.
+- The token is ES256 with header `typ: tenant-context+jwt`; services require
+  that type, so no other JWT can stand in for it. Lifetime is
+  `TENANT_CONTEXT_TTL_SECONDS` (default 60) and every token has a `jti`.
+- The browser's access token never reaches a service.
+
+### Routes without a company
+
+For routes marked tenantless (`GET /api/identity/v1/me` and the platform-admin
+routes under `/api/identity/v1/admin/users`) the context has no `tid`:
+
+| Claim | Meaning |
+|---|---|
+| `sub` | CompanyCentral user ID; absent only before the user's first `/me` |
+| `roles` | Platform roles from the Keycloak token (`realm_access.roles`), only `platform-admin` |
+| `idp_iss`, `idp_sub` | Issuer and subject of the Keycloak token |
+| `email`, `email_verified`, `name`, `given_name`, `family_name` | Profile claims, when present |
+| `rid` | Correlation ID (`X-Request-Id`) |
+
+### User resolution (ADR-0003)
+
+After the token check the gateway resolves the token's subject through
+identity (`/v1/internal/users/by-subject/{sub}`, authenticated with a
+`svc: gateway` context), cached for `USER_CACHE_TTL_SECONDS`:
+
+| Answer | Result |
+|---|---|
+| active user | forwarded with `sub` set |
+| deleted user | `401`, even if the Keycloak token is still valid |
+| no user yet | only `GET /me` is forwarded (it creates the user); other routes `403` |
+| identity unreachable | `503` |
+
+Until membership checks exist, every other route fails closed with `501`.
 
 ## Rate limiting and size limits
 
