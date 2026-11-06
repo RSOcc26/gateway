@@ -83,6 +83,8 @@ test('unknown, internal and traversal paths return 404 before authentication', a
     '/api/identity/v1/x/../internal/memberships/check',
     '/api/identity/v1/%2e%2e/internal/x',
     '/api/identity/v1%2Finternal',
+    '/api/identity/v1//internal/users/by-subject/x',
+    '/api/identity//evil/v1/me',
     '/nope',
   ]) problem(await gw.inject({ url, headers: auth }), 404);
 });

@@ -59,6 +59,7 @@ export const createOidcVerifier = ({ issuer, audience, jwksUrl, fetchImpl = fetc
         issuer,
         audience,
         algorithms: ['RS256', 'PS256', 'ES256'],
+        requiredClaims: ['sub'],
       });
       return payload;
     } catch (err) {

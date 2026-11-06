@@ -36,6 +36,8 @@ const ENCODED_DELIMITERS = /%(2f|5c|23|3f|00)/i;
 export const resolveRoute = (service, rawRest) => {
   if (!SERVICES.includes(service)) return null;
   if (ENCODED_DELIMITERS.test(rawRest) || rawRest.includes('\\')) return null;
+  // Empty segments: a leading "//" would parse as a host, "//" elsewhere may be collapsed upstream
+  if (rawRest.startsWith('/') || rawRest.includes('//')) return null;
   // Normalize dot segments (also encoded ones) the same way the upstream will
   const path = new URL(`/${rawRest}`, 'http://upstream').pathname;
   let decoded;

@@ -46,6 +46,13 @@ test('rejects a wrong audience, wrong issuer or expired token', async () => {
   await assert.rejects(oidc.verify(await token({ exp: '-1m' })), { code: 'ERR_JWT_EXPIRED' });
 });
 
+test('rejects a token without a subject', async () => {
+  const oidc = createOidcVerifier({ issuer, audience: 'gateway' });
+  const noSub = await new SignJWT({}).setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+    .setIssuer(issuer).setAudience('gateway').setIssuedAt().setExpirationTime('5m').sign(privateKey);
+  await assert.rejects(oidc.verify(noSub), { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED' });
+});
+
 test('an unreachable provider is reported as unavailable, not as a bad token', async () => {
   const oidc = createOidcVerifier({ issuer: 'http://127.0.0.1:1/realms/cc', audience: 'gateway' });
   await assert.rejects(oidc.ready(), OidcUnavailableError);
