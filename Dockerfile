@@ -1,10 +1,9 @@
-# syntax=docker/dockerfile:1
 # Production image: runtime dependencies only, non-root, read-only friendly.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts
 
 FROM node:24-alpine
 ENV NODE_ENV=production
