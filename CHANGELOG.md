@@ -36,6 +36,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Contract tests: signed contexts against the shared tenant-context schema;
   copied identity schemas and bodies against identity's contract (drift check).
 - `MAX_RESPONSE_BYTES`; `idp_iat` (token issue time) in the signed context.
+- Container image (`Dockerfile`, non-root, runtime dependencies only), published to
+  `ghcr.io/rsocc26/gateway` by CI on merge to `main`; graceful shutdown on `SIGTERM`.
 
 ### Fixed
 
